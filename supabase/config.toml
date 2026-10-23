@@ -1,0 +1,6 @@
+# Local Supabase CLI project configuration. Link with `supabase link --project-ref <ref>`.
+[functions.redeem-pairing]
+verify_jwt = true
+
+[functions.revoke-device]
+verify_jwt = true
