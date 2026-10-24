@@ -9,6 +9,7 @@ class AppColors {
   static const muted = Color(0xFF9AA7B3);
   static const white = Color(0xFFF4F7F5);
   static const accent = Color(0xFFD9FF67);
+  static const accentDark = Color(0xFFBFD940);
   static const aqua = Color(0xFF67E8D6);
   static const danger = Color(0xFFFF777D);
   static const warning = Color(0xFFFFCB70);
@@ -32,9 +33,9 @@ class AppTheme {
           labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
         ),
         appBarTheme: const AppBarTheme(backgroundColor: AppColors.background, foregroundColor: AppColors.white, surfaceTintColor: Colors.transparent, elevation: 0),
-        inputDecorationTheme: InputDecorationTheme(filled: true, fillColor: AppColors.surface, hintStyle: const TextStyle(color: AppColors.muted), labelStyle: const TextStyle(color: AppColors.muted), contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 17), border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: AppColors.border)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: AppColors.border)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: AppColors.accent, width: 1.4))),
-        filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: AppColors.ink, minimumSize: const Size.fromHeight(54), textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
-        outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(foregroundColor: AppColors.white, minimumSize: const Size.fromHeight(52), side: const BorderSide(color: AppColors.border), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)))),
+        inputDecorationTheme: InputDecorationTheme(filled: true, fillColor: AppColors.surface, hintStyle: const TextStyle(color: AppColors.muted), labelStyle: const TextStyle(color: AppColors.muted)),
+        filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: AppColors.ink, minimumSize: const Size.fromHeight(54), textStyle: const TextStyle(fontWeight: FontWeight.w600))),
+        outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(foregroundColor: AppColors.white, minimumSize: const Size.fromHeight(52), side: const BorderSide(color: AppColors.border))),
         snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating, backgroundColor: AppColors.raised),
         dividerColor: AppColors.border,
       );
