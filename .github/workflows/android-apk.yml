@@ -62,8 +62,8 @@ jobs:
         run: flutter test
       - name: Build release APK
         env:
-          SUPABASE_URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL }}
-          SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL || 'https://demo.supabase.co' }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_demo_placeholder_key_for_ci' }}
           TURN_URL: ${{ vars.TURN_URL || secrets.TURN_URL }}
           TURN_USERNAME: ${{ secrets.TURN_USERNAME || vars.TURN_USERNAME }}
           TURN_CREDENTIAL: ${{ secrets.TURN_CREDENTIAL || vars.TURN_CREDENTIAL }}
