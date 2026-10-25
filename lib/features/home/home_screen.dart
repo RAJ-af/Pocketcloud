@@ -143,7 +143,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _open(Widget page) async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
-    if (mounted) _load();
+    if (mounted) {
+      await _load();
+    }
   }
 
   @override
@@ -209,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: _MetricCard(
                       icon: Icons.folder_shared_rounded,
                       title: 'Vault',
-                      value: '${_device?['server_enabled'] == true ? 'Online' : 'Ready'}',
+                      value: _device?['server_enabled'] == true ? 'Online' : 'Ready',
                       accent: AppColors.accent,
                     ),
                   ),
@@ -458,3 +460,4 @@ class _ActionTile extends StatelessWidget {
     );
   }
 }
+

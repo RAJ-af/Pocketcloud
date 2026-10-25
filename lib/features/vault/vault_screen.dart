@@ -82,7 +82,14 @@ class _VaultScreenState extends State<VaultScreen> {
         }
 
         try {
-          await item.readAsByteStream().pipe(temp.openWrite());
+          final sink = temp.openWrite();
+          try {
+            await sink.addStream(item.readAsByteStream());
+            await sink.flush();
+          } finally {
+            await sink.close();
+          }
+
           // Avoid replacing a file if another import created the same name.
           if (await target.exists()) {
             final dot = name.lastIndexOf('.');
@@ -193,3 +200,4 @@ class _VaultScreenState extends State<VaultScreen> {
     );
   }
 }
+

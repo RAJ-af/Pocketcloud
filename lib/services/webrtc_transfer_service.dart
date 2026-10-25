@@ -395,7 +395,7 @@ class WebRtcTransferService {
 
   Future<void> _sendControl(Map<String, dynamic> body) async {
     if (!connected || _data == null) throw StateError('Peer data channel is not open.');
-    _data!.send(RTCDataChannelMessage(jsonEncode(body)));
+    await _data!.send(RTCDataChannelMessage(jsonEncode(body)));
   }
 
   Future<List<RemoteFile>> listRemoteFiles() async {
@@ -472,7 +472,9 @@ class WebRtcTransferService {
         case 'list_request':
           if (_pair?['server_device_id'] != localDeviceId ||
               _pair?['client_device_id'] != _remoteDeviceId ||
-              _pair?['can_list'] != true) return;
+              _pair?['can_list'] != true) {
+            return;
+          }
           final files = await _vault.list();
           const pageSize = 8;
           if (files.isEmpty) {
@@ -509,7 +511,9 @@ class WebRtcTransferService {
         case 'download_request':
           if (_pair?['server_device_id'] != localDeviceId ||
               _pair?['client_device_id'] != _remoteDeviceId ||
-              _pair?['can_download'] != true) return;
+              _pair?['can_download'] != true) {
+            return;
+          }
           final requestId = message['requestId']?.toString() ?? _uuid.v4();
           await _sendVaultFile(message['name']?.toString() ?? '', requestId);
           break;
@@ -522,7 +526,7 @@ class WebRtcTransferService {
             await _sendControl({'type': 'transfer_error', 'transferId': transferId, 'message': 'Upload permission denied.'});
             return;
           }
-          if (!RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', caseSensitive: false).hasMatch(transferId) || digest.length != 64 || !RegExp(r'^[0-9a-f]{64}$').hasMatch(digest) || size < 0 || size > VaultStore.maxFileBytes || _incoming.isNotEmpty) {
+          if (!RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', caseSensitive: false).hasMatch(transferId) || digest.length != 64 || !RegExp(r'^[0-9a-f]{64}$').hasMatch(digest) || size < 0 || size > VaultStore.maxFileBytes) {
             await _sendControl({'type': 'transfer_error', 'transferId': transferId, 'message': 'Upload is invalid, too large, or another transfer is active.'});
             return;
           }
@@ -539,7 +543,9 @@ class WebRtcTransferService {
               _pair?['client_device_id'] == localDeviceId && _pair?['can_download'] == true &&
               message['direction'] == 'download' && requestId != null && _downloadWaiters.containsKey(requestId);
           if (!permittedDownload) throw StateError('Download was not requested or permission is disabled.');
-          if (!RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', caseSensitive: false).hasMatch(transferId) || digest.length != 64 || !RegExp(r'^[0-9a-f]{64}$').hasMatch(digest) || size < 0 || size > VaultStore.maxFileBytes || _incoming.isNotEmpty) throw StateError('Incoming file is invalid, too large, or another transfer is active.');
+          if (!RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', caseSensitive: false).hasMatch(transferId) || digest.length != 64 || !RegExp(r'^[0-9a-f]{64}$').hasMatch(digest) || size < 0 || size > VaultStore.maxFileBytes) {
+            throw StateError('Download was invalid or oversized.');
+          }
           _incoming[transferId] = _IncomingFile(name: _vault.safeName(message['name']?.toString() ?? ''), expectedSize: size, expectedHash: digest, requestId: requestId, isUpload: false);
           break;
         case 'file_chunk':
@@ -561,7 +567,7 @@ class WebRtcTransferService {
           final index = (message['index'] as num?)?.toInt() ?? -1;
           if (index != transfer.nextChunk) throw StateError('Invalid or out-of-order chunk.');
           final bytes = base64Decode(message['data'].toString());
-          if (transfer.receivedBytes + bytes.length > transfer.expectedSize || transfer.receivedBytes + bytes.length > VaultStore.maxFileBytes) throw StateError('Incoming file exceeded declared size.');
+          if (transfer.receivedBytes + bytes.length > transfer.expectedSize || transfer.receivedBytes + bytes.length > VaultStore.maxFileBytes) throw StateError('Incoming file exceeded declared size boundaries.');
           transfer.nextChunk++;
           transfer.bytes.add(bytes);
           break;
@@ -576,7 +582,9 @@ class WebRtcTransferService {
                   _pair?['can_upload'] == true)) {
             throw StateError('Upload permission was revoked.');
           }
-          if (!transfer.isUpload && !(_pair?['client_device_id'] == localDeviceId && _pair?['server_device_id'] == _remoteDeviceId && _pair?['can_download'] == true)) throw StateError('Download permission was revoked.');
+          if (!transfer.isUpload && !(_pair?['client_device_id'] == localDeviceId && _pair?['server_device_id'] == _remoteDeviceId && _pair?['can_download'] == true)) {
+            throw StateError('Download permission was revoked.');
+          }
           transfer.ended = true;
           final bytes = transfer.bytes.takeBytes();
           if (bytes.length != transfer.expectedSize) throw StateError('File length mismatch.');
@@ -617,7 +625,15 @@ class WebRtcTransferService {
       final upload = activeTransferId == null ? null : _uploadWaiters.remove(activeTransferId);
       if (upload != null && !upload.isCompleted) upload.completeError(StateError('Transfer validation or storage failed.'));
       if ((activeTransferId != null || requestId != null) && connected) {
-        try { await _sendControl({'type': 'transfer_error', if (activeTransferId != null) 'transferId': activeTransferId, if (requestId != null) 'requestId': requestId, 'message': 'Transfer validation or storage failed.'}); } catch (_) {}
+        try {
+          final errorBody = <String, dynamic>{
+            'type': 'transfer_error',
+            if (activeTransferId != null) 'transferId': activeTransferId,
+            if (requestId != null) 'requestId': requestId,
+            'message': 'Transfer validation or storage failed.',
+          };
+          await _sendControl(errorBody);
+        } catch (_) {}
       }
       _status(PeerStatus.failed, 'A transfer message was invalid or failed validation.');
     }
@@ -698,3 +714,4 @@ class _IncomingFile {
   int get receivedBytes => bytes.length;
   int nextChunk = 0;
 }
+
