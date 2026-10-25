@@ -4,10 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/app_theme.dart';
 import '../../services/device_repository.dart';
+import '../../services/pairing_repository.dart';
 import '../devices/devices_screen.dart';
 import '../security/security_screen.dart';
 import '../../services/webrtc_transfer_service.dart';
 import '../vault/vault_screen.dart';
+import '../vault/storage_management_screen.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:flutter/services.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,10 +22,13 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _repo = DeviceRepository();
+  final _pairingRepo = PairingRepository();
   Map<String, dynamic>? _device;
   bool _serverEnabled = false;
   bool _working = true;
   String _network = 'Checking network';
+  PairingCodeInfo? _activePairingCode;
+  Timer? _codeCountdownTimer;
   StreamSubscription<List<ConnectivityResult>>? _connectivity;
   Timer? _heartbeat;
   WebRtcTransferService? _hostTransfer;
@@ -32,7 +39,11 @@ class _HomeScreenState extends State<HomeScreen> {
     _load();
     _connectivity = Connectivity().onConnectivityChanged.listen((results) {
       if (mounted) {
-        setState(() => _network = results.any((r) => r != ConnectivityResult.none) ? 'Online' : 'Offline');
+        setState(
+          () => _network = results.any((r) => r != ConnectivityResult.none)
+              ? 'Online'
+              : 'Offline',
+        );
       }
     });
   }
@@ -41,12 +52,40 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _connectivity?.cancel();
     _heartbeat?.cancel();
+    _codeCountdownTimer?.cancel();
     final id = _device?['id']?.toString();
     if (id != null) {
       unawaited(_repo.markOffline(id).catchError((Object _) {}));
     }
     unawaited(_stopHostListener());
     super.dispose();
+  }
+
+  Future<void> _generatePairingCode() async {
+    if (_device == null || _device!['id'] == null) return;
+    try {
+      final info = await _pairingRepo.createPairingCode(
+        serverDeviceId: _device!['id'] as String,
+        canUpload: true,
+      );
+      if (mounted) {
+        setState(() => _activePairingCode = info);
+        _startCountdown();
+      }
+    } catch (e) {
+      if (mounted) _message('Could not generate pairing code: ${e.toString()}');
+    }
+  }
+
+  void _startCountdown() {
+    _codeCountdownTimer?.cancel();
+    _codeCountdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      if (_activePairingCode == null || _activePairingCode!.isExpired) {
+        _codeCountdownTimer?.cancel();
+      }
+      setState(() {});
+    });
   }
 
   Future<void> _load() async {
@@ -59,14 +98,22 @@ class _HomeScreenState extends State<HomeScreen> {
         _serverEnabled = device['server_enabled'] == true;
       });
       _heartbeat?.cancel();
-      _heartbeat = Timer.periodic(const Duration(seconds: 30), (_) => unawaited(_repo.markOnline(device['id'] as String).catchError((Object _) {})));
+      _heartbeat = Timer.periodic(
+        const Duration(seconds: 30),
+        (_) => unawaited(
+          _repo.markOnline(device['id'] as String).catchError((Object _) {}),
+        ),
+      );
       // The database flag survives app navigation/relaunch; the actual peer
       // listener does not. Recreate it while this Flutter process is alive.
       if (device['server_enabled'] == true) {
         await _startHostListener(device['id'] as String);
       }
     } catch (_) {
-      if (mounted) _message('Could not register this device. Check the database migration and sign-in.');
+      if (mounted)
+        _message(
+          'Could not register this device. Check the database migration and sign-in.',
+        );
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -81,15 +128,21 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         setState(() {
           _serverEnabled = on;
-          _device = {..._device!, 'server_enabled': on, 'role': on ? 'server' : 'client'};
+          _device = {
+            ..._device!,
+            'server_enabled': on,
+            'role': on ? 'server' : 'client',
+          };
         });
       }
       if (on) {
         final started = await _startHostListener(id);
         if (started) {
-          _message('Server mode enabled. Keep PocketCloud open for this MVP; background survival is not guaranteed on every Android device.');
+          await _generatePairingCode();
+          _message('Server mode enabled.');
         }
       } else {
+        setState(() => _activePairingCode = null);
         await _stopHostListener();
       }
     } catch (_) {
@@ -103,9 +156,12 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_hostTransfer != null) return true;
     if (!mounted) return false;
 
-    final service = WebRtcTransferService(localDeviceId: id, onStatus: (status, message) {
-      if (mounted && status == PeerStatus.failed) _message(message);
-    });
+    final service = WebRtcTransferService(
+      localDeviceId: id,
+      onStatus: (status, message) {
+        if (mounted && status == PeerStatus.failed) _message(message);
+      },
+    );
     _hostTransfer = service;
     try {
       await service.startListening();
@@ -124,7 +180,9 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         });
       }
-      _message('Could not start peer listener. Server mode was switched off. Check Realtime settings.');
+      _message(
+        'Could not start peer listener. Server mode was switched off. Check Realtime settings.',
+      );
       return false;
     }
   }
@@ -150,7 +208,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final email = Supabase.instance.client.auth.currentUser?.email ?? 'Personal cloud';
+    final email =
+        Supabase.instance.client.auth.currentUser?.email ?? 'Personal cloud';
 
     return Scaffold(
       body: SafeArea(
@@ -168,7 +227,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: AppColors.accent,
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Icon(Icons.cloud_done_rounded, color: Colors.white),
+                    child: const Icon(
+                      Icons.cloud_done_rounded,
+                      color: Colors.white,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -187,13 +249,17 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 10),
               Text(
                 'Turn a spare phone into storage you can reach from anywhere.',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.muted),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.copyWith(color: AppColors.muted),
               ),
               const SizedBox(height: 22),
               _ServerHero(
                 enabled: _serverEnabled,
                 working: _working,
+                activePairingCode: _activePairingCode,
                 onToggle: _toggleServer,
+                onRefreshCode: _generatePairingCode,
               ),
               const SizedBox(height: 14),
               Row(
@@ -211,7 +277,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: _MetricCard(
                       icon: Icons.folder_shared_rounded,
                       title: 'Vault',
-                      value: _device?['server_enabled'] == true ? 'Online' : 'Ready',
+                      value: _device?['server_enabled'] == true
+                          ? 'Online'
+                          : 'Ready',
                       accent: AppColors.accent,
                     ),
                   ),
@@ -221,17 +289,33 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Your cloud tools', style: Theme.of(context).textTheme.titleLarge),
-                  Text('MVP', style: Theme.of(context).textTheme.labelLarge?.copyWith(color: AppColors.muted)),
+                  Text(
+                    'Your cloud tools',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  Text(
+                    'MVP',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelLarge?.copyWith(color: AppColors.muted),
+                  ),
                 ],
               ),
               const SizedBox(height: 13),
               _ActionTile(
                 icon: Icons.folder_open_rounded,
                 title: 'Cloud library',
-                detail: 'Choose files to keep on this phone',
+                detail: 'Manage local vault and storage files',
                 color: AppColors.accent,
                 onTap: () => _open(const VaultScreen()),
+              ),
+              const SizedBox(height: 10),
+              _ActionTile(
+                icon: Icons.sd_storage_rounded,
+                title: 'Storage access mode',
+                detail: 'Selected files vs full shared-storage access',
+                color: AppColors.warning,
+                onTap: () => _open(const StorageManagementScreen()),
               ),
               const SizedBox(height: 10),
               _ActionTile(
@@ -266,8 +350,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      _working ? 'Syncing your device state…' : 'Everything is ready to keep your cloud library in sync.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.muted),
+                      _working
+                          ? 'Syncing your device state…'
+                          : 'Everything is ready to keep your cloud library in sync.',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: AppColors.muted),
                     ),
                   ],
                 ),
@@ -280,11 +368,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       email,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.muted),
                     ),
                   ),
                   TextButton(
-                    onPressed: () => _message('PocketCloud is running in MVP mode.'),
+                    onPressed: () =>
+                        _message('PocketCloud is running in MVP mode.'),
                     child: const Text('Details'),
                   ),
                   TextButton(
@@ -293,10 +384,20 @@ class _HomeScreenState extends State<HomeScreen> {
                         context: context,
                         builder: (dialogContext) => AlertDialog(
                           title: const Text('Sign out?'),
-                          content: const Text('This will disconnect this app from your PocketCloud account.'),
+                          content: const Text(
+                            'This will disconnect this app from your PocketCloud account.',
+                          ),
                           actions: [
-                            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
-                            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Sign out')),
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.pop(dialogContext, false),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              onPressed: () =>
+                                  Navigator.pop(dialogContext, true),
+                              child: const Text('Sign out'),
+                            ),
                           ],
                         ),
                       );
@@ -317,14 +418,26 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _ServerHero extends StatelessWidget {
-  const _ServerHero({required this.enabled, required this.working, required this.onToggle});
+  const _ServerHero({
+    required this.enabled,
+    required this.working,
+    required this.activePairingCode,
+    required this.onToggle,
+    required this.onRefreshCode,
+  });
 
   final bool enabled;
   final bool working;
+  final PairingCodeInfo? activePairingCode;
   final ValueChanged<bool> onToggle;
+  final VoidCallback onRefreshCode;
 
   @override
   Widget build(BuildContext context) {
+    final code = activePairingCode;
+    final isExpired = code?.isExpired ?? true;
+    final remainingSeconds = code?.remainingTime.inSeconds ?? 0;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -351,27 +464,127 @@ class _ServerHero extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 enabled ? 'Server active' : 'Server offline',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.white),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(color: Colors.white),
               ),
             ],
           ),
           const SizedBox(height: 18),
           Text(
-            enabled ? 'Your cloud is\nready to host.' : 'Your phone can\ndo more.',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.white),
+            enabled
+                ? 'Your cloud is\nready to host.'
+                : 'Your phone can\ndo more.',
+            style: Theme.of(
+              context,
+            ).textTheme.headlineMedium?.copyWith(color: Colors.white),
           ),
-          const SizedBox(height: 12),
-          Text(
-            enabled ? 'This device is marked as a server in your account.' : 'Enable server mode to register this device as your personal host.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70),
-          ),
+          if (enabled && code != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'One-time pairing code',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        isExpired ? 'Expired' : '${remainingSeconds}s',
+                        style: TextStyle(
+                          color: isExpired ? Colors.redAccent : Colors.white70,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SelectableText(
+                          isExpired ? '••••••••••••' : code.plaintextCode,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            letterSpacing: 2,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.copy_rounded,
+                          color: Colors.white,
+                        ),
+                        onPressed: isExpired
+                            ? null
+                            : () async {
+                                await Clipboard.setData(
+                                  ClipboardData(text: code.plaintextCode),
+                                );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Pairing code copied.'),
+                                  ),
+                                );
+                              },
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.refresh_rounded,
+                          color: Colors.white,
+                        ),
+                        onPressed: onRefreshCode,
+                      ),
+                    ],
+                  ),
+                  if (!isExpired) ...[
+                    const SizedBox(height: 10),
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: QrImageView(
+                          data: code.plaintextCode,
+                          version: QrVersions.auto,
+                          size: 110.0,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 18),
           SizedBox(
             width: double.infinity,
             child: FilledButton(
               onPressed: working ? null : () => onToggle(!enabled),
-              style: FilledButton.styleFrom(backgroundColor: enabled ? Colors.white : AppColors.accentDark),
-              child: Text(enabled ? 'Disable server' : 'Enable server'),
+              style: FilledButton.styleFrom(
+                backgroundColor: enabled ? Colors.white : AppColors.accentDark,
+              ),
+              child: Text(
+                enabled ? 'Disable server' : 'Enable server',
+                style: TextStyle(color: enabled ? Colors.black : Colors.white),
+              ),
             ),
           ),
         ],
@@ -381,7 +594,12 @@ class _ServerHero extends StatelessWidget {
 }
 
 class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.icon, required this.title, required this.value, required this.accent});
+  const _MetricCard({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.accent,
+  });
 
   final IconData icon;
   final String title;
@@ -402,7 +620,12 @@ class _MetricCard extends StatelessWidget {
         children: [
           Icon(icon, color: accent),
           const SizedBox(height: 18),
-          Text(title, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: AppColors.muted)),
+          Text(
+            title,
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(color: AppColors.muted),
+          ),
           const SizedBox(height: 4),
           Text(value, style: Theme.of(context).textTheme.titleMedium),
         ],
@@ -412,7 +635,13 @@ class _MetricCard extends StatelessWidget {
 }
 
 class _ActionTile extends StatelessWidget {
-  const _ActionTile({required this.icon, required this.title, required this.detail, required this.color, required this.onTap});
+  const _ActionTile({
+    required this.icon,
+    required this.title,
+    required this.detail,
+    required this.color,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String title;
@@ -448,7 +677,12 @@ class _ActionTile extends StatelessWidget {
                   children: [
                     Text(title, style: Theme.of(context).textTheme.titleMedium),
                     const SizedBox(height: 4),
-                    Text(detail, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted)),
+                    Text(
+                      detail,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.muted),
+                    ),
                   ],
                 ),
               ),
@@ -460,4 +694,3 @@ class _ActionTile extends StatelessWidget {
     );
   }
 }
-
