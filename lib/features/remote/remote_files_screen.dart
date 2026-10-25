@@ -22,7 +22,6 @@ class _RemoteFilesScreenState extends State<RemoteFilesScreen> {
   String _statusMessage = 'Preparing secure connection…';
   List<RemoteFile> _files = [];
   bool _loadingFiles = false;
-  bool _starting = true;
   bool _canUpload = false;
   String? _error;
 
@@ -34,7 +33,6 @@ class _RemoteFilesScreenState extends State<RemoteFilesScreen> {
       setState(() {
         _status = status;
         _statusMessage = message;
-        _starting = status == PeerStatus.connecting || status == PeerStatus.waiting;
         if (status == PeerStatus.connected) _error = null;
       });
       if (status == PeerStatus.connected) unawaited(_loadFiles());
@@ -45,7 +43,6 @@ class _RemoteFilesScreenState extends State<RemoteFilesScreen> {
   Future<void> _connect() async {
     if (mounted) {
       setState(() {
-        _starting = true;
         _error = null;
         _status = PeerStatus.connecting;
         _statusMessage = 'Connecting to your server…';
@@ -56,14 +53,12 @@ class _RemoteFilesScreenState extends State<RemoteFilesScreen> {
       await _transfer.connectToServer(widget.serverDeviceId);
       if (mounted) {
         setState(() {
-          _starting = false;
           _canUpload = _transfer.canUpload;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _starting = false;
           _status = PeerStatus.failed;
           _statusMessage = 'Could not connect';
           _error = e is StateError ? e.message.toString() : 'Check that the server is online and the pairing is still valid.';

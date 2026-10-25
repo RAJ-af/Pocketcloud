@@ -32,7 +32,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
       - uses: flutter-actions/setup-flutter@v4
         with:
           channel: stable
@@ -57,11 +62,11 @@ jobs:
         run: flutter test
       - name: Build release APK
         env:
-          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-          SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
-          TURN_URL: ${{ vars.TURN_URL }}
-          TURN_USERNAME: ${{ secrets.TURN_USERNAME }}
-          TURN_CREDENTIAL: ${{ secrets.TURN_CREDENTIAL }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL || 'https://demo.supabase.co' }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_demo_placeholder_key_for_ci' }}
+          TURN_URL: ${{ vars.TURN_URL || secrets.TURN_URL }}
+          TURN_USERNAME: ${{ secrets.TURN_USERNAME || vars.TURN_USERNAME }}
+          TURN_CREDENTIAL: ${{ secrets.TURN_CREDENTIAL || vars.TURN_CREDENTIAL }}
         run: |
           python3 - <<'PY'
           import base64, json, os, sys
@@ -96,7 +101,7 @@ jobs:
             --dart-define=TURN_USERNAME="${TURN_USERNAME}" \
             --dart-define=TURN_CREDENTIAL="${TURN_CREDENTIAL}"
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: pocketcloud-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk

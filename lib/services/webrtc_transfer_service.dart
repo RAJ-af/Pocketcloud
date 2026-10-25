@@ -628,10 +628,10 @@ class WebRtcTransferService {
         try {
           final errorBody = <String, dynamic>{
             'type': 'transfer_error',
-            if (activeTransferId != null) 'transferId': activeTransferId,
-            if (requestId != null) 'requestId': requestId,
             'message': 'Transfer validation or storage failed.',
           };
+          if (activeTransferId != null) errorBody['transferId'] = activeTransferId;
+          if (requestId != null) errorBody['requestId'] = requestId;
           await _sendControl(errorBody);
         } catch (_) {}
       }

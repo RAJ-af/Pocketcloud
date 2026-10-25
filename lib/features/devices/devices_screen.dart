@@ -10,7 +10,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/app_theme.dart';
 import '../../services/device_repository.dart';
 import '../remote/remote_files_screen.dart';
-import 'pairing_scanner_screen.dart';
 
 class DevicesScreen extends StatefulWidget {
   const DevicesScreen({super.key});
@@ -26,7 +25,6 @@ class _DevicesScreenState extends State<DevicesScreen> {
   String? _error;
   String? _pairCode;
   String? _localDeviceId;
-  List<Map<String, dynamic>> _pairs = [];
 
   @override
   void initState() {
@@ -43,12 +41,10 @@ class _DevicesScreenState extends State<DevicesScreen> {
     try {
       final current = await _repo.ensureThisDevice();
       final data = await _repo.listDevices();
-      final pairs = await _repo.listPairs();
       if (mounted) {
         setState(() {
           _localDeviceId = current['id'];
           _devices = List<Map<String, dynamic>>.from(data);
-          _pairs = List<Map<String, dynamic>>.from(pairs);
         });
       }
     } catch (_) {
@@ -133,7 +129,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
       final controller = TextEditingController();
       code = await showDialog<String>(
         context: context,
-        builder: (context) => AlertDialog(
+        builder: (dialogContext) => AlertDialog(
           title: const Text('Pair with a server'),
           content: TextField(
             controller: controller,
@@ -143,8 +139,8 @@ class _DevicesScreenState extends State<DevicesScreen> {
             decoration: const InputDecoration(hintText: 'Enter 12-character code'),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, null), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Pair')),
+            TextButton(onPressed: () => Navigator.pop(dialogContext, null), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, controller.text.trim()), child: const Text('Pair')),
           ],
         ),
       );
@@ -152,7 +148,9 @@ class _DevicesScreenState extends State<DevicesScreen> {
     }
 
     if (code == null || code.length != 12) return;
+    if (!mounted) return;
 
+    final messenger = ScaffoldMessenger.of(context);
     try {
       final localId = _localDeviceId;
       if (localId == null) throw StateError('This device has not finished registering.');
@@ -165,14 +163,14 @@ class _DevicesScreenState extends State<DevicesScreen> {
         throw StateError('Pairing was rejected.');
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(content: Text('Devices paired. Upload access follows the server owner’s choice.')),
         );
         await _load();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(content: Text('Pairing failed: ${e is StateError ? e.message : 'Check code and connection.'}')),
         );
       }
@@ -207,9 +205,8 @@ class _DevicesScreenState extends State<DevicesScreen> {
       await Supabase.instance.client.functions.invoke('revoke-device', body: {'deviceId': device['id']});
       await _load();
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not revoke device.')));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not revoke device.')));
     }
   }
 
@@ -223,14 +220,17 @@ class _DevicesScreenState extends State<DevicesScreen> {
         isCurrent: isCurrent,
         onPair: canConnect ? () => _startPairing(device) : null,
         onConnect: canConnect
-            ? () => Navigator.of(context).push(
+            ? () {
+                final navigator = Navigator.of(context);
+                navigator.push(
                   MaterialPageRoute(
                     builder: (_) => RemoteFilesScreen(
                       localDeviceId: _localDeviceId ?? '',
                       serverDeviceId: device['id'].toString(),
                     ),
                   ),
-                )
+                );
+              }
             : null,
         onRevoke: () => _confirmRevoke(device),
       );
@@ -289,9 +289,9 @@ class _DevicesScreenState extends State<DevicesScreen> {
                                   onPressed: () async {
                                     final code = _pairCode;
                                     if (code == null || code.isEmpty) return;
+                                    final messenger = ScaffoldMessenger.of(context);
                                     await Clipboard.setData(ClipboardData(text: code));
-                                    if (!mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
+                                    messenger.showSnackBar(
                                       const SnackBar(content: Text('Pairing code copied to clipboard.')),
                                     );
                                   },
