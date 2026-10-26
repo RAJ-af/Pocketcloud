@@ -49,7 +49,10 @@ class _DevicesScreenState extends State<DevicesScreen> {
       }
     } catch (_) {
       if (mounted) {
-        setState(() => _error = 'Could not load devices. Apply the Supabase migration and check RLS.');
+        setState(
+          () => _error =
+              'Could not load devices. Apply the Supabase migration and check RLS.',
+        );
       }
     } finally {
       if (mounted) {
@@ -83,7 +86,11 @@ class _DevicesScreenState extends State<DevicesScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not create pairing code. Ensure this device is marked as a server.')),
+          const SnackBar(
+            content: Text(
+              'Could not create pairing code. Ensure this device is marked as a server.',
+            ),
+          ),
         );
       }
     }
@@ -104,15 +111,22 @@ class _DevicesScreenState extends State<DevicesScreen> {
               const SizedBox(height: 16),
               CheckboxListTile(
                 value: allowUpload,
-                onChanged: (value) => setDialogState(() => allowUpload = value ?? false),
+                onChanged: (value) =>
+                    setDialogState(() => allowUpload = value ?? false),
                 title: const Text('Allow uploads to this server'),
                 controlAffinity: ListTileControlAffinity.leading,
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Generate')),
+            TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(c, true),
+              child: const Text('Generate'),
+            ),
           ],
         ),
       ),
@@ -136,11 +150,20 @@ class _DevicesScreenState extends State<DevicesScreen> {
             textCapitalization: TextCapitalization.characters,
             autocorrect: false,
             enableSuggestions: false,
-            decoration: const InputDecoration(hintText: 'Enter 12-character code'),
+            decoration: const InputDecoration(
+              hintText: 'Enter 12-character code',
+            ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, null), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(dialogContext, controller.text.trim()), child: const Text('Pair')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, null),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.pop(dialogContext, controller.text.trim()),
+              child: const Text('Pair'),
+            ),
           ],
         ),
       );
@@ -153,7 +176,8 @@ class _DevicesScreenState extends State<DevicesScreen> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       final localId = _localDeviceId;
-      if (localId == null) throw StateError('This device has not finished registering.');
+      if (localId == null)
+        throw StateError('This device has not finished registering.');
 
       final result = await Supabase.instance.client.functions.invoke(
         'redeem-pairing',
@@ -164,14 +188,22 @@ class _DevicesScreenState extends State<DevicesScreen> {
       }
       if (mounted) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Devices paired. Upload access follows the server owner’s choice.')),
+          const SnackBar(
+            content: Text(
+              'Devices paired. Upload access follows the server owner’s choice.',
+            ),
+          ),
         );
         await _load();
       }
     } catch (e) {
       if (mounted) {
         messenger.showSnackBar(
-          SnackBar(content: Text('Pairing failed: ${e is StateError ? e.message : 'Check code and connection.'}')),
+          SnackBar(
+            content: Text(
+              'Pairing failed: ${e is StateError ? e.message : 'Check code and connection.'}',
+            ),
+          ),
         );
       }
     }
@@ -181,7 +213,11 @@ class _DevicesScreenState extends State<DevicesScreen> {
     if (device['id'] == _localDeviceId) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You cannot revoke the device you are using. Sign out and revoke it from another device instead.')),
+          const SnackBar(
+            content: Text(
+              'You cannot revoke the device you are using. Sign out and revoke it from another device instead.',
+            ),
+          ),
         );
       }
       return;
@@ -191,10 +227,18 @@ class _DevicesScreenState extends State<DevicesScreen> {
       context: context,
       builder: (c) => AlertDialog(
         title: const Text('Revoke device?'),
-        content: Text('Revoke access for ${device['name'] ?? 'this device'}? Existing server files stay local, and the pairing can be re-created later.'),
+        content: Text(
+          'Revoke access for ${device['name'] ?? 'this device'}? Existing server files stay local, and the pairing can be re-created later.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Revoke')),
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Revoke'),
+          ),
         ],
       ),
     );
@@ -202,11 +246,16 @@ class _DevicesScreenState extends State<DevicesScreen> {
     if (yes != true) return;
 
     try {
-      await Supabase.instance.client.functions.invoke('revoke-device', body: {'deviceId': device['id']});
+      await Supabase.instance.client.functions.invoke(
+        'revoke-device',
+        body: {'deviceId': device['id']},
+      );
       await _load();
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not revoke device.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not revoke device.')));
     }
   }
 
@@ -214,7 +263,10 @@ class _DevicesScreenState extends State<DevicesScreen> {
   Widget build(BuildContext context) {
     final deviceCards = _devices.map((device) {
       final isCurrent = device['id'] == _localDeviceId;
-      final canConnect = !isCurrent && device['server_enabled'] == true && device['revoked_at'] == null;
+      final canConnect =
+          !isCurrent &&
+          device['server_enabled'] == true &&
+          device['revoked_at'] == null;
       return _DeviceCard(
         device: device,
         isCurrent: isCurrent,
@@ -258,7 +310,10 @@ class _DevicesScreenState extends State<DevicesScreen> {
                         color: AppColors.danger.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Text(_error!, style: const TextStyle(color: AppColors.danger)),
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(color: AppColors.danger),
+                      ),
                     ),
                   if (_pairCode != null)
                     Container(
@@ -274,25 +329,46 @@ class _DevicesScreenState extends State<DevicesScreen> {
                           SizedBox(
                             width: 120,
                             height: 120,
-                            child: QrImageView(data: _pairCode!, version: QrVersions.auto, size: 120.0),
+                            child: QrImageView(
+                              data: _pairCode!,
+                              version: QrVersions.auto,
+                              size: 120.0,
+                            ),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Pairing code', style: TextStyle(fontWeight: FontWeight.w700)),
+                                const Text(
+                                  'Pairing code',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
                                 const SizedBox(height: 8),
-                                SelectableText(_pairCode!, style: const TextStyle(fontSize: 24, letterSpacing: 2)),
+                                SelectableText(
+                                  _pairCode!,
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    letterSpacing: 2,
+                                  ),
+                                ),
                                 const SizedBox(height: 8),
                                 TextButton.icon(
                                   onPressed: () async {
                                     final code = _pairCode;
                                     if (code == null || code.isEmpty) return;
-                                    final messenger = ScaffoldMessenger.of(context);
-                                    await Clipboard.setData(ClipboardData(text: code));
+                                    final messenger = ScaffoldMessenger.of(
+                                      context,
+                                    );
+                                    await Clipboard.setData(
+                                      ClipboardData(text: code),
+                                    );
                                     messenger.showSnackBar(
-                                      const SnackBar(content: Text('Pairing code copied to clipboard.')),
+                                      const SnackBar(
+                                        content: Text(
+                                          'Pairing code copied to clipboard.',
+                                        ),
+                                      ),
                                     );
                                   },
                                   icon: const Icon(Icons.copy_rounded),
@@ -312,7 +388,9 @@ class _DevicesScreenState extends State<DevicesScreen> {
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(color: AppColors.border),
                       ),
-                      child: const Center(child: Text('No devices are paired yet.')),
+                      child: const Center(
+                        child: Text('No devices are paired yet.'),
+                      ),
                     )
                   else
                     ...deviceCards,
@@ -344,8 +422,13 @@ class _DeviceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lastSeen = DateTime.tryParse(device['last_seen_at']?.toString() ?? '');
-    final fresh = lastSeen != null && DateTime.now().toUtc().difference(lastSeen.toUtc()) < const Duration(seconds: 90);
+    final lastSeen = DateTime.tryParse(
+      device['last_seen_at']?.toString() ?? '',
+    );
+    final fresh =
+        lastSeen != null &&
+        DateTime.now().toUtc().difference(lastSeen.toUtc()) <
+            const Duration(seconds: 90);
     final active = device['revoked_at'] == null && fresh;
 
     return Container(
@@ -369,21 +452,35 @@ class _DeviceCard extends StatelessWidget {
               ),
               if (isCurrent)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.accent.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: const Text('This device', style: TextStyle(fontSize: 12)),
+                  child: const Text(
+                    'This device',
+                    style: TextStyle(fontSize: 12),
+                  ),
                 )
               else if (device['server_enabled'] == true)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: active ? AppColors.accent.withValues(alpha: 0.12) : AppColors.warning.withValues(alpha: 0.12),
+                    color: active
+                        ? AppColors.accent.withValues(alpha: 0.12)
+                        : AppColors.warning.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: Text(active ? 'Online' : 'Offline', style: const TextStyle(fontSize: 12)),
+                  child: Text(
+                    active ? 'Online' : 'Offline',
+                    style: const TextStyle(fontSize: 12),
+                  ),
                 ),
             ],
           ),
@@ -392,7 +489,11 @@ class _DeviceCard extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: [
-              Icon(Icons.circle, size: 10, color: active ? AppColors.accent : AppColors.warning),
+              Icon(
+                Icons.circle,
+                size: 10,
+                color: active ? AppColors.accent : AppColors.warning,
+              ),
               const SizedBox(width: 6),
               Text(active ? 'Active recently' : 'Needs a fresh sync'),
             ],

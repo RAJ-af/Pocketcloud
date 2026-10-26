@@ -11,6 +11,12 @@ permissions = [
     'android.permission.INTERNET',
     'android.permission.ACCESS_NETWORK_STATE',
     'android.permission.CAMERA',
+    'android.permission.READ_EXTERNAL_STORAGE',
+    'android.permission.WRITE_EXTERNAL_STORAGE',
+    'android.permission.MANAGE_EXTERNAL_STORAGE',
+    'android.permission.POST_NOTIFICATIONS',
+    'android.permission.FOREGROUND_SERVICE',
+    'android.permission.FOREGROUND_SERVICE_DATA_SYNC',
 ]
 for permission in permissions:
     tag = f'<uses-permission android:name="{permission}" />'

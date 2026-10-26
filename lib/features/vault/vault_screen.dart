@@ -41,7 +41,8 @@ class _VaultScreenState extends State<VaultScreen> {
         ..sort((a, b) => a.path.toLowerCase().compareTo(b.path.toLowerCase()));
       if (mounted) setState(() => _files = files);
     } catch (_) {
-      if (mounted) setState(() => _error = 'Could not read the local cloud library.');
+      if (mounted)
+        setState(() => _error = 'Could not read the local cloud library.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -114,33 +115,43 @@ class _VaultScreenState extends State<VaultScreen> {
       await _refresh();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$imported file(s) added to this phone’s app-private vault.')),
+          SnackBar(
+            content: Text(
+              '$imported file(s) added to this phone’s app-private vault.',
+            ),
+          ),
         );
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Import failed. Check available storage and file access.')),
+          const SnackBar(
+            content: Text(
+              'Import failed. Check available storage and file access.',
+            ),
+          ),
         );
       }
     }
   }
 
-  String _safeName(String input) => input
-      .replaceAll(RegExp(r'[/\\\x00-\x1F]'), '_')
-      .replaceAll('..', '_')
-      .trim()
-      .isEmpty
-      ? 'file_${DateTime.now().millisecondsSinceEpoch}'
-      : input
+  String _safeName(String input) =>
+      input
           .replaceAll(RegExp(r'[/\\\x00-\x1F]'), '_')
           .replaceAll('..', '_')
-          .trim();
+          .trim()
+          .isEmpty
+      ? 'file_${DateTime.now().millisecondsSinceEpoch}'
+      : input
+            .replaceAll(RegExp(r'[/\\\x00-\x1F]'), '_')
+            .replaceAll('..', '_')
+            .trim();
 
   String _formatSize(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) return '${(bytes / 1024 / 1024).toStringAsFixed(1)} MB';
+    if (bytes < 1024 * 1024 * 1024)
+      return '${(bytes / 1024 / 1024).toStringAsFixed(1)} MB';
     return '${(bytes / 1024 / 1024 / 1024).toStringAsFixed(2)} GB';
   }
 
@@ -164,40 +175,42 @@ class _VaultScreenState extends State<VaultScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text(_error!))
-              : _files.isEmpty
-                  ? const Center(
-                      child: Text('Your vault is empty.'),
-                    )
-                  : ListView.builder(
-                      itemCount: _files.length,
-                      itemBuilder: (context, index) {
-                        final file = _files[index];
-                        final displayName = file.uri.pathSegments.isNotEmpty
-                            ? file.uri.pathSegments.last
-                            : 'file';
+          ? Center(child: Text(_error!))
+          : _files.isEmpty
+          ? const Center(child: Text('Your vault is empty.'))
+          : ListView.builder(
+              itemCount: _files.length,
+              itemBuilder: (context, index) {
+                final file = _files[index];
+                final displayName = file.uri.pathSegments.isNotEmpty
+                    ? file.uri.pathSegments.last
+                    : 'file';
 
-                        return ListTile(
-                          title: Text(displayName),
-                          subtitle: FutureBuilder<int>(
-                            future: file is File ? file.length() : Future.value(0),
-                            builder: (context, snapshot) {
-                              final bytes = snapshot.data ?? 0;
-                              return Text(_formatSize(bytes));
-                            },
-                          ),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.share_rounded),
-                            onPressed: () async {
-                              if (file is File) {
-                                await SharePlus.instance.share(ShareParams(files: [XFile(file.path)], text: 'Shared from PocketCloud'));
-                              }
-                            },
+                return ListTile(
+                  title: Text(displayName),
+                  subtitle: FutureBuilder<int>(
+                    future: file is File ? file.length() : Future.value(0),
+                    builder: (context, snapshot) {
+                      final bytes = snapshot.data ?? 0;
+                      return Text(_formatSize(bytes));
+                    },
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.share_rounded),
+                    onPressed: () async {
+                      if (file is File) {
+                        await SharePlus.instance.share(
+                          ShareParams(
+                            files: [XFile(file.path)],
+                            text: 'Shared from PocketCloud',
                           ),
                         );
-                      },
-                    ),
+                      }
+                    },
+                  ),
+                );
+              },
+            ),
     );
   }
 }
-

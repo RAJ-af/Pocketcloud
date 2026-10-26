@@ -4,6 +4,113 @@ import '../../core/app_theme.dart';
 
 class SecurityScreen extends StatelessWidget {
   const SecurityScreen({super.key});
-  @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Privacy & security')), body: ListView(padding: const EdgeInsets.all(20), children: [Text('You stay in control.', style: Theme.of(context).textTheme.headlineMedium), const SizedBox(height: 10), Text('Security is built around explicit access, revocable pairings and minimal cloud metadata.', style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.muted)), const SizedBox(height: 20), const _SecurityItem(icon: Icons.key_rounded, title: 'Account security', detail: 'Email and password are handled by Supabase Auth. Use a unique password and keep email confirmation enabled.'), const _SecurityItem(icon: Icons.enhanced_encryption_rounded, title: 'Encrypted peer connection', detail: 'WebRTC uses DTLS/SRTP transport encryption. A TURN relay may see connection metadata, but does not need the file plaintext.'), const _SecurityItem(icon: Icons.phonelink_lock_rounded, title: 'Device access', detail: 'Pairing requires a signed-in account. Revoke devices you no longer trust. Keep server phone screen lock enabled.'), const _SecurityItem(icon: Icons.folder_off_outlined, title: 'File scope', detail: 'The app-private vault contains only files you explicitly import. This MVP does not request broad all-files access.'), const _SecurityItem(icon: Icons.policy_outlined, title: 'Consent records', detail: 'Terms/privacy acceptance or rejection is stored with policy version and decision time. New policy versions require a fresh decision.'), const SizedBox(height: 10), OutlinedButton.icon(onPressed: () async { await Supabase.instance.client.auth.signOut(); if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst); }, icon: const Icon(Icons.logout_rounded), label: const Text('Sign out')), const SizedBox(height: 12), Text('Account deletion requires deleting the Auth user and associated rows through a trusted admin workflow. The mobile client intentionally cannot delete Auth users directly.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted, height: 1.5))]));
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Privacy & security')),
+    body: ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        Text(
+          'You stay in control.',
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Security is built around explicit access, revocable pairings and minimal cloud metadata.',
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(color: AppColors.muted),
+        ),
+        const SizedBox(height: 20),
+        const _SecurityItem(
+          icon: Icons.key_rounded,
+          title: 'Account security',
+          detail:
+              'Email and password are handled by Supabase Auth. Use a unique password and keep email confirmation enabled.',
+        ),
+        const _SecurityItem(
+          icon: Icons.enhanced_encryption_rounded,
+          title: 'Encrypted peer connection',
+          detail:
+              'WebRTC uses DTLS/SRTP transport encryption. A TURN relay may see connection metadata, but does not need the file plaintext.',
+        ),
+        const _SecurityItem(
+          icon: Icons.phonelink_lock_rounded,
+          title: 'Device access',
+          detail:
+              'Pairing requires a signed-in account. Revoke devices you no longer trust. Keep server phone screen lock enabled.',
+        ),
+        const _SecurityItem(
+          icon: Icons.folder_off_outlined,
+          title: 'File scope',
+          detail:
+              'The app-private vault contains only files you explicitly import. This MVP does not request broad all-files access.',
+        ),
+        const _SecurityItem(
+          icon: Icons.policy_outlined,
+          title: 'Consent records',
+          detail:
+              'Terms/privacy acceptance or rejection is stored with policy version and decision time. New policy versions require a fresh decision.',
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: () async {
+            await Supabase.instance.client.auth.signOut();
+            if (context.mounted)
+              Navigator.of(context).popUntil((r) => r.isFirst);
+          },
+          icon: const Icon(Icons.logout_rounded),
+          label: const Text('Sign out'),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Account deletion requires deleting the Auth user and associated rows through a trusted admin workflow. The mobile client intentionally cannot delete Auth users directly.',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.muted, height: 1.5),
+        ),
+      ],
+    ),
+  );
 }
-class _SecurityItem extends StatelessWidget { const _SecurityItem({required this.icon, required this.title, required this.detail}); final IconData icon; final String title; final String detail; @override Widget build(BuildContext context) => Container(margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.all(15), decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(17), border: Border.all(color: AppColors.border)), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(icon, color: AppColors.accent), const SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontWeight: FontWeight.w800)), const SizedBox(height: 5), Text(detail, style: const TextStyle(color: AppColors.muted, height: 1.45))]))])); }
+
+class _SecurityItem extends StatelessWidget {
+  const _SecurityItem({
+    required this.icon,
+    required this.title,
+    required this.detail,
+  });
+  final IconData icon;
+  final String title;
+  final String detail;
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(bottom: 10),
+    padding: const EdgeInsets.all(15),
+    decoration: BoxDecoration(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(17),
+      border: Border.all(color: AppColors.border),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: AppColors.accent),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 5),
+              Text(
+                detail,
+                style: const TextStyle(color: AppColors.muted, height: 1.45),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}

@@ -19,10 +19,16 @@ class VaultStore {
   }
 
   String safeName(String raw) {
-    final name = raw.split('/').last.split('\\').last
+    final name = raw
+        .split('/')
+        .last
+        .split('\\')
+        .last
         .replaceAll(RegExp(r'[\x00-\x1F]'), '_')
-        .replaceAll('..', '_').trim();
-    if (name.isEmpty || name == '.' || name == '..') throw const FormatException('Invalid file name');
+        .replaceAll('..', '_')
+        .trim();
+    if (name.isEmpty || name == '.' || name == '..')
+      throw const FormatException('Invalid file name');
     return name.length > 180 ? name.substring(name.length - 180) : name;
   }
 
@@ -49,7 +55,8 @@ class VaultStore {
     final file = File('${dir.path}${Platform.pathSeparator}$name');
     final resolvedDir = await dir.resolveSymbolicLinks();
     final resolvedParent = await file.parent.resolveSymbolicLinks();
-    if (resolvedParent != resolvedDir) throw const FormatException('Invalid destination');
+    if (resolvedParent != resolvedDir)
+      throw const FormatException('Invalid destination');
     return file;
   }
 
@@ -68,15 +75,20 @@ class VaultStore {
   }
 
   Future<File> saveReceived(String rawName, List<int> bytes) async {
-    if (bytes.length > maxFileBytes) throw const FormatException('File exceeds the 25 MB MVP limit');
+    if (bytes.length > maxFileBytes)
+      throw const FormatException('File exceeds the 25 MB MVP limit');
     final name = safeName(rawName);
     var target = await _availableTarget(name);
     final dir = await directory();
     var suffix = DateTime.now().microsecondsSinceEpoch;
-    var temp = File('${dir.path}${Platform.pathSeparator}.pocketcloud-$suffix.part');
+    var temp = File(
+      '${dir.path}${Platform.pathSeparator}.pocketcloud-$suffix.part',
+    );
     while (await temp.exists()) {
       suffix++;
-      temp = File('${dir.path}${Platform.pathSeparator}.pocketcloud-$suffix.part');
+      temp = File(
+        '${dir.path}${Platform.pathSeparator}.pocketcloud-$suffix.part',
+      );
     }
     try {
       await temp.writeAsBytes(bytes, flush: true);
@@ -84,7 +96,9 @@ class VaultStore {
       if (await target.exists()) target = await _availableTarget(name);
       return await temp.rename(target.path);
     } catch (_) {
-      try { if (await temp.exists()) await temp.delete(); } catch (_) {}
+      try {
+        if (await temp.exists()) await temp.delete();
+      } catch (_) {}
       rethrow;
     }
   }
